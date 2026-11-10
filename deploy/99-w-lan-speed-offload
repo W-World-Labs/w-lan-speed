@@ -1,0 +1,6 @@
+#!/bin/sh
+case "$ACTION" in add|remove|change) ;; *) exit 0 ;; esac
+[ -x /usr/libexec/w-lan-speed-offload ] || exit 0
+[ -x /etc/init.d/w-lan-speed ] || exit 0
+/etc/init.d/w-lan-speed enabled || exit 0
+/usr/libexec/w-lan-speed-offload

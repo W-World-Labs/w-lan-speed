@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#f4f4ef"><title>局域测速 · W LAN Speed</title>
+  <link rel="icon" href="data:,"><link rel="stylesheet" href="/style.css"><script src="/app.js" defer></script>
+</head>
+<body>
+<header><a class="brand" href="/" aria-label="局域测速首页"><span class="mark">↗</span>局域测速<span class="brand-en">W LAN SPEED</span></a><span class="connection"><i></i><span id="connection">正在连接设备</span></span></header>
+<main>
+  <section class="intro"><div><p class="eyebrow">YOUR NETWORK, MEASURED.</p><h1>看看你的网络，<br>能跑多快。</h1><p class="description">从手里的设备，到这台 OpenWrt。<br>测出 Wi-Fi 和有线局域网的真实传输表现。</p></div><div class="route"><span>你的浏览器</span><span class="route-line">◦ ───────── ◦</span><span id="router">OpenWrt</span><small>数据只在局域网内传输</small><a id="peer-link" class="peer-link" hidden>改测 Wi-Fi 转发 · 有线对端 ↗</a></div></section>
+  <section class="console" aria-label="测速控制台">
+    <div class="console-top"><span class="eyebrow">LOCAL NETWORK TEST</span><span id="phase" role="status" aria-live="polite">准备就绪</span></div>
+    <div class="readout"><span id="speed">—</span><div><span id="unit">Mbps</span><small id="direction">等待开始测速</small></div></div>
+    <div class="graph-wrap"><div class="graph-label"><span>实时吞吐</span><span id="elapsed">约 20 秒完成</span></div><svg id="graph" viewBox="0 0 1000 125" preserveAspectRatio="none" role="img" aria-label="当前阶段的速度曲线"><path class="grid" d="M0 25H1000M0 65H1000M0 105H1000"/><path id="area" d=""/><path id="line" d=""/></svg></div>
+    <div class="console-bottom"><p id="hint">连接同一局域网，点击开始即可。测速期间请保持页面在前台。</p><button id="start" type="button">开始测速 <span>↗</span></button></div>
+    <div class="progress" aria-hidden="true"><div id="progress"></div></div>
+  </section>
+  <section class="metrics" aria-label="测速结果">
+    <div><p>↓ 下载速度</p><strong id="download">—</strong><span id="download-path">Mbps · 路由器 → 此设备</span></div>
+    <div><p>↑ 上传速度</p><strong id="upload">—</strong><span id="upload-path">Mbps · 此设备 → 路由器</span></div>
+    <div><p>↔ 空载延迟</p><strong id="latency">—</strong><span>ms · HTTP 往返中位数</span></div>
+    <div><p>≈ 延迟抖动</p><strong id="jitter">—</strong><span>ms · 相邻延迟差的均值</span></div>
+  </section>
+  <section class="history"><div class="section-heading"><div><h2>最近的表现</h2><p>最近 10 次结果，仅保存在当前浏览器。</p></div><button class="text-button" id="clear" type="button">清空记录</button></div><div class="table-wrap"><table><thead><tr><th>测速时间</th><th>下载 <small>Mbps</small></th><th>上传 <small>Mbps</small></th><th>延迟 <small>ms</small></th><th>抖动 <small>ms</small></th></tr></thead><tbody id="history"></tbody></table></div><p id="empty">还没有测速记录。第一次，看看能跑到多少。</p></section>
+  <footer><span>W LAN SPEED <b>01 / LOCAL</b></span><p>这是局域网测速，结果不代表互联网带宽。速度也受路由器 CPU、设备性能和浏览器影响。</p></footer>
+</main>
+</body></html>

@@ -1,0 +1,14 @@
+[Unit]
+Description=W LAN Speed wired peer
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+User=nobody
+EnvironmentFile=/etc/w-lan-speed.conf
+ExecStart=/usr/local/bin/w-lan-speed-peer --listen ${LISTEN_ADDRESS} --wired-peer
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

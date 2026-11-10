@@ -1,0 +1,98 @@
+name: Build and release
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: w-lan-speed-${{ github.ref }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version-file: go.mod
+          cache: false
+      - name: Format, static and syntax checks
+        run: |
+          test -z "$(gofmt -l main.go)"
+          go vet ./...
+          node --check web/app.js
+          sh -n deploy/w-lan-speed.init
+          sh -n deploy/w-lan-speed-offload
+          sh -n deploy/99-w-lan-speed-offload
+      - name: Validate version and tag ancestry
+        env:
+          RELEASE_TAG: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || '' }}
+        run: |
+          python3 - <<'PY'
+          import json, os, pathlib, re
+          version = json.loads(pathlib.Path('openapi.json').read_text())['info']['version']
+          source = pathlib.Path('main.go').read_text()
+          assert re.fullmatch(r'[0-9]+\.[0-9]+\.[0-9]+', version)
+          assert f'"version": "{version}"' in source
+          assert f'W LAN Speed {version} listening' in source
+          tag = os.environ['RELEASE_TAG']
+          assert not tag or tag == f'v{version}'
+          PY
+          if [ -n "$RELEASE_TAG" ]; then
+            git merge-base --is-ancestor HEAD origin/main
+          fi
+      - name: Build and package static binaries with licenses
+        run: |
+          mkdir artifacts
+          for arch in amd64 arm64; do
+            binary="artifacts/w-lan-speed-linux-$arch"
+            CGO_ENABLED=0 GOOS=linux GOARCH="$arch" go build -trimpath -ldflags='-s -w' -o "$binary" .
+            file "$binary" | grep -Eq 'statically linked|static-pie linked'
+            if readelf -l "$binary" | grep -q INTERP; then exit 1; fi
+            if readelf -d "$binary" | grep -q NEEDED; then exit 1; fi
+          done
+          version="$(python3 -c 'import json; print(json.load(open("openapi.json"))["info"]["version"])')"
+          git archive --format=tar.gz --prefix="w-lan-speed-$version/" HEAD > "artifacts/w-lan-speed-$version-source.tar.gz"
+          tar -czf artifacts/w-lan-speed-licenses.tar.gz LICENSE NOTICE.md licenses/
+          (cd artifacts && sha256sum w-lan-speed-* > SHA256SUMS)
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: w-lan-speed-release
+          path: artifacts/
+          if-no-files-found: error
+          retention-days: 7
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/') && github.repository == 'W-World-Labs/w-lan-speed'
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: w-lan-speed-release
+          path: release
+      - name: Verify and publish immutable release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          test "$(find release -maxdepth 1 -type f | wc -l)" -eq 5
+          (cd release && sha256sum -c SHA256SUMS)
+          gh release create "$RELEASE_TAG" release/* --verify-tag --title "$RELEASE_TAG" \
+            --notes 'Static Linux amd64/arm64 binaries, complete source, third-party license notices and SHA256SUMS. Keep the license archive with binary distributions. No production deployment or bandwidth benchmark is performed.'

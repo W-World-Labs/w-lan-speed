@@ -1,0 +1,48 @@
+#!/bin/sh
+# Only the private wired speed-test endpoint gets this fast path.
+(
+    flock -x 9 || exit 1
+    disable_offload() {
+        echo "W LAN Speed scoped offload disabled: $1" >&2
+        nft destroy table inet w_lan_speed >/dev/null 2>&1 || :
+    }
+    [ -r /etc/w-lan-speed.conf ] || { disable_offload "no local configuration"; exit 0; }
+    OFFLOAD_SOURCE_CIDR=""
+    OFFLOAD_PEER_ADDRESS=""
+    OFFLOAD_PORT=""
+    OFFLOAD_DEVICES=""
+    . /etc/w-lan-speed.conf
+    if [ -z "$OFFLOAD_SOURCE_CIDR" ] || [ -z "$OFFLOAD_PEER_ADDRESS" ] || [ -z "$OFFLOAD_PORT" ] || [ -z "$OFFLOAD_DEVICES" ]; then
+        disable_offload "configure source, peer, port and devices explicitly"
+        exit 0
+    fi
+    case "$OFFLOAD_SOURCE_CIDR" in *[!0-9./]*) disable_offload "invalid source CIDR"; exit 1 ;; esac
+    case "$OFFLOAD_PEER_ADDRESS" in *[!0-9.]*) disable_offload "invalid peer IPv4 address"; exit 1 ;; esac
+    case "$OFFLOAD_PORT" in *[!0-9]*) disable_offload "invalid TCP port"; exit 1 ;; esac
+    if [ "$OFFLOAD_PORT" -lt 1 ] || [ "$OFFLOAD_PORT" -gt 65535 ]; then
+        disable_offload "TCP port must be 1-65535"
+        exit 1
+    fi
+    devices=""
+    for name in $OFFLOAD_DEVICES; do
+        case "$name" in *[!a-zA-Z0-9_.:@-]*) disable_offload "invalid interface name"; exit 1 ;; esac
+        [ -e "/sys/class/net/$name" ] || continue
+        [ -z "$devices" ] || devices="$devices, "
+        devices="$devices\"$name\""
+    done
+    [ -n "$devices" ] || { disable_offload "no configured interfaces exist"; exit 0; }
+    nft -f - <<EOF
+destroy table inet w_lan_speed
+table inet w_lan_speed {
+    flowtable wired_peer {
+        hook ingress priority 0;
+        devices = { $devices };
+        flags offload;
+    }
+    chain wired_peer_forward {
+        type filter hook forward priority 10; policy accept;
+        meta l4proto tcp ct original ip saddr { 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16 } ct original ip saddr $OFFLOAD_SOURCE_CIDR ct original ip daddr { 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16 } ct original ip daddr $OFFLOAD_PEER_ADDRESS ct original proto-dst $OFFLOAD_PORT ct state established counter flow add @wired_peer
+    }
+}
+EOF
+) 9>/var/lock/w-lan-speed-offload.lock

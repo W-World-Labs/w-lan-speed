@@ -1,0 +1,14 @@
+# Copy to /etc/w-lan-speed.conf and keep it owned by the local administrator.
+# Default is loopback only. Set a specific local LAN IPv4:port to allow LAN use.
+LISTEN_ADDRESS=127.0.0.1:8899
+
+# Optional browser link to a separately configured private wired peer.
+PEER_URL=
+
+# Optional OpenWrt scoped flow offload. Blank values disable it.
+# Supply an explicit source CIDR, peer IPv4, single TCP port and space-separated
+# interfaces belonging to your own network. Only RFC1918 traffic can match.
+OFFLOAD_SOURCE_CIDR=
+OFFLOAD_PEER_ADDRESS=
+OFFLOAD_PORT=
+OFFLOAD_DEVICES=

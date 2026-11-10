@@ -1,0 +1,207 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "W LAN Speed",
+    "version": "1.0.2",
+    "description": "独立局域网测速服务；所有请求必须使用监听地址为 Host，Origin（若存在）须同源。"
+  },
+  "servers": [
+    {
+      "url": "http://127.0.0.1:8899"
+    }
+  ],
+  "paths": {
+    "/api/info": {
+      "get": {
+        "summary": "设备信息",
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "hostname": {
+                      "type": "string"
+                    },
+                    "version": {
+                      "type": "string"
+                    },
+                    "streams": {
+                      "type": "integer"
+                    },
+                    "duration": {
+                      "type": "integer"
+                    },
+                    "wired_peer": {
+                      "type": "boolean",
+                      "description": "是否为有线测速对端"
+                    },
+                    "peer_url": {
+                      "type": "string",
+                      "description": "可选的私网有线对端入口，为空时不提供入口"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/session": {
+      "post": {
+        "summary": "创建 60 秒、绑定来源 IP 的单设备会话",
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "token"
+                  ],
+                  "properties": {
+                    "token": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "已有测速会话或传输未退出"
+          }
+        }
+      },
+      "delete": {
+        "summary": "释放会话",
+        "security": [
+          {
+            "sessionToken": []
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "已释放"
+          },
+          "403": {
+            "description": "会话无效、过期、来源 IP 不符或请求非同源"
+          }
+        }
+      }
+    },
+    "/api/ping": {
+      "get": {
+        "summary": "HTTP 空载往返探测",
+        "security": [
+          {
+            "sessionToken": []
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "成功"
+          },
+          "403": {
+            "description": "会话无效、过期、来源 IP 不符或请求非同源"
+          }
+        }
+      }
+    },
+    "/api/download": {
+      "get": {
+        "summary": "随机字节流，最多 10 秒、总并发 6",
+        "responses": {
+          "200": {
+            "description": "随机字节流",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "会话无效、过期、来源 IP 不符或请求非同源"
+          },
+          "429": {
+            "description": "并发已满"
+          }
+        },
+        "security": [
+          {
+            "sessionToken": []
+          }
+        ]
+      }
+    },
+    "/api/upload": {
+      "post": {
+        "summary": "读取上传并确认实际字节数",
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "bytes"
+                  ],
+                  "properties": {
+                    "bytes": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 8388608
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "会话无效、过期、来源 IP 不符或请求非同源"
+          },
+          "400": {
+            "description": "请求体读取失败或超过 8 MiB"
+          },
+          "429": {
+            "description": "并发已满"
+          }
+        },
+        "security": [
+          {
+            "sessionToken": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/octet-stream": {
+              "schema": {
+                "type": "string",
+                "format": "binary",
+                "maxLength": 8388608
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "sessionToken": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-Speedtest-Token"
+      }
+    }
+  }
+}
