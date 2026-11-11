@@ -63,3 +63,7 @@ GitHub Actions 在 `main` 推送和 PR 中执行 Go 格式检查、`go vet`、Ja
 ## 接口
 
 同源 JSON/二进制 HTTP 接口，无跨项目消费者。`POST /api/session` 创建会话（冲突 409）；其余测速接口携带 `X-Speedtest-Token`，并绑定来源 IP。`GET /api/info` 返回设备名、版本、参数、`wired_peer` 与可选 `peer_url`；`GET /api/ping` 返回 204；`GET /api/download` 最多流式发送 10 秒；`POST /api/upload` 接受最多 8 MiB，返回 `{"bytes":整数}`；`DELETE /api/session` 释放会话。过期会话 403，并发超限 429，上传未完成或超限 400。详细契约见 `openapi.json`。
+
+## 外部代码与依赖清单
+
+[go.mod](go.mod) 当前未声明外部 Go 模块；编译产物仍包含 Go 标准库和运行时，其 BSD 许可和上游来源见 [NOTICE.md](NOTICE.md) 与 [licenses/go-bsd.txt](licenses/go-bsd.txt)。部署示例可能调用系统提供的工具，工具本身不包含在发行包中。分发二进制时请保留相应许可归属。
