@@ -23,6 +23,34 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
+      - name: Scan public files and complete history for secrets
+        env:
+          GITLEAKS_VERSION: 8.30.1
+        run: |
+          archive="$RUNNER_TEMP/gitleaks.tar.gz"
+          curl --fail --location --retry 2 --connect-timeout 10 --max-time 120 \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" \
+            --output "$archive"
+          echo "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb  $archive" | sha256sum --check --strict
+          tar -xzf "$archive" -C "$RUNNER_TEMP" gitleaks
+          "$RUNNER_TEMP/gitleaks" dir . --redact --no-banner
+          "$RUNNER_TEMP/gitleaks" git . --redact --no-banner --log-opts="--all"
+      - name: Enforce source size limits
+        run: |
+          python3 - <<'PYTHON'
+          import subprocess
+          total = 0
+          for entry in subprocess.check_output(['git', 'ls-tree', '-r', '-l', '-z', 'HEAD']).split(b'\0'):
+              if not entry:
+                  continue
+              metadata, path = entry.split(b'\t', 1)
+              mode, kind, sha, size = metadata.split()
+              assert kind == b'blob', f'Unexpected source object: {path!r}'
+              size = int(size)
+              assert size <= 10 * 1024 * 1024, f'Source file exceeds 10 MiB: {path!r}'
+              total += size
+          assert total <= 100 * 1024 * 1024, 'Source tree exceeds 100 MiB'
+          PYTHON
       - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
         with:
           go-version-file: go.mod
