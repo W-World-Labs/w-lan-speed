@@ -4,6 +4,17 @@
 
 源码：[W-World-Labs/w-lan-speed](https://github.com/W-World-Labs/w-lan-speed)。默认只监听 loopback；使用者可显式绑定自己的 LAN IPv4。不要对公网开放。
 
+## 源码维护与发布审查
+
+GitHub 是本项目唯一的源码主仓与 CI/CD 入口。维护者在本机只编辑与审查源码，
+构建、静态检查、打包和发布由 GitHub Actions 执行。新增源码修改只提交 GitHub；
+Gitea 旧源码副本在迁移审查完成后退役，不再接收源码修改。
+真实配置、凭据、实际设备绑定和运行数据保留在使用者的私有环境，公开仓库只提供模板。
+
+CI 对公开文件和完整 Git 历史执行 Gitleaks 扫描，并限制单个源码文件不超过
+10 MiB、源码树总量不超过 100 MiB。构建产物只上传 Actions artifacts（保留 7 天）
+或正式 Releases，不提交回 Git，也不在维护者源码目录积累构建缓存。
+
 ## 构建与运行
 
 需要 Go 1.25 或更新版本。源码不需要私有包仓库或凭据。
